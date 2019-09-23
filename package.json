@@ -1,0 +1,20 @@
+{
+  "name": "@qubyte/appended-file-watcher",
+  "version": "0.0.0",
+  "description": "Watch a file for changes due to data being appended to it.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "mocha test"
+  },
+  "engines": {
+    "node": ">=12"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^6.4.0",
+    "eslint-config-qubyte": "^3.0.0",
+    "mocha": "^6.2.0"
+  }
+}
