@@ -1,15 +1,11 @@
 'use strict';
 
-const { watch, promises: fs } = require('fs');
+const fs = require('fs').promises;
 const { EventEmitter } = require('events');
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.log('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+const chokidar = require('chokidar');
 
 module.exports = function createWatcher(datafilePath) {
-  const watcher = watch(datafilePath, { persistent: false });
+  const watcher = chokidar.watch(datafilePath, { persistent: false, usePolling: true });
   const relay = new EventEmitter();
 
   let offsetBytes = 0;
@@ -43,14 +39,18 @@ module.exports = function createWatcher(datafilePath) {
   }
 
   watcher.on('error', onError);
+  watcher.once('ready', onChange);
 
-  onChange();
+  let closed = false;
 
   relay.close = () => {
-    watcher.off('error', onError);
-    watcher.off('change', onChange);
-    watcher.close();
-    relay.emit('close');
+    if (!closed) {
+      closed = true;
+      watcher.off('error', onError);
+      watcher.off('change', onChange);
+      watcher.close();
+      relay.emit('close');
+    }
   };
 
   return relay;

@@ -8,14 +8,24 @@ const { EventEmitter, once } = require('events');
 
 const testDataPath = path.join(__dirname, 'test.dat');
 
+process.on('unhandledRejection', error => {
+  console.log('Unhandled Rejection:', error.stack); // eslint-disable-line no-console
+  process.exit(1);
+});
+
 describe('append-file-watcher', () => {
-  beforeEach(() => {
-    return fs.writeFile(testDataPath, 'abc');
+  let watcher;
+
+  beforeEach(async () => {
+    await fs.writeFile(testDataPath, 'abc');
   });
 
-  afterEach(() => {
-    return fs.unlink(testDataPath)
-      .catch(() => {});
+  afterEach(async () => {
+    if (watcher) {
+      watcher.close();
+    }
+
+    await fs.unlink(testDataPath);
   });
 
   it('is a function', () => {
@@ -23,48 +33,50 @@ describe('append-file-watcher', () => {
   });
 
   it('returns an event emitter', () => {
-    const emitter = appendFileWatcher(testDataPath);
+    watcher = appendFileWatcher(testDataPath);
 
-    assert.ok(emitter instanceof EventEmitter);
+    assert.ok(watcher instanceof EventEmitter);
   });
 
   it('emits the initial content of a file as a buffer when watching begins', async () => {
-    const emitter = appendFileWatcher(testDataPath);
-    const [data] = await once(emitter, 'append');
+    watcher = appendFileWatcher(testDataPath);
+    const [data] = await once(watcher, 'append');
 
     assert.ok(data instanceof Buffer);
     assert.equal(data.toString(), 'abc');
   });
 
   it('emits subsequent appends as buffers', async () => {
-    const emitter = appendFileWatcher(testDataPath);
-    const [firstResult] = await once(emitter, 'append');
+    watcher = appendFileWatcher(testDataPath);
+    const [firstResult] = await once(watcher, 'append');
 
     assert.ok(firstResult instanceof Buffer);
     assert.equal(firstResult.toString(), 'abc');
 
+    const appendPromise = once(watcher, 'append');
+
     await fs.appendFile(testDataPath, 'def');
 
-    const [secondResult] = await once(emitter, 'append');
+    const [secondResult] = await appendPromise;
 
     assert.ok(secondResult instanceof Buffer);
     assert.equal(secondResult.toString(), 'def');
   });
 
   it('emits "close" when close is called', async () => {
-    const emitter = appendFileWatcher(testDataPath);
+    watcher = appendFileWatcher(testDataPath);
 
-    await once(emitter, 'append');
+    await once(watcher, 'append');
 
     let closed = false;
 
-    emitter.once('close', () => {
+    watcher.once('close', () => {
       closed = true;
     });
 
     assert.equal(closed, false);
 
-    emitter.close();
+    watcher.close();
 
     assert.equal(closed, true);
   });
